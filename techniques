@@ -1,0 +1,26 @@
+-- ==================================================================
+-- Deciles
+-- ==================================================================
+
+		WITH Rowi AS
+				(	SELECT 1 AS Rowi
+					UNION ALL
+					SELECT Rowi + 1
+					FROM Rowi 
+					WHERE Rowi < 10
+				)
+		    SELECT Rowi
+				 , 1.0*Rowi/10 - 1.0/10 AS L
+				 , 1.0*Rowi/10 AS H
+				 , CONCAT(CONVERT(VARCHAR,CONVERT(INT,(1.0*Rowi/10 - 1.0/10)  *  100)), '%-',CONVERT(VARCHAR,CONVERT(INT,(1.0*Rowi/10 )  *  100)),'%') AS Band
+			INTO sandbox.dbo.VP_SoWBanding
+			FROM Rowi option(maxrecursion 600)
+
+-- ==================================================================
+-- Join Method
+-- ==================================================================
+
+
+		INNER JOIN sandbox.dbo.VP_SoWBanding SOW
+		ON C.Share_of_Wallet >= SOW.L
+		AND Share_of_Wallet <  CASE WHEN SOW.Rowi = 10 THEN 1.1 ELSE SOW.H END
