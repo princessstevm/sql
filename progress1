@@ -1,0 +1,34 @@
+			SELECT a.BankCustomerID_INT, a.Online/(a.Online+a.Offline) as Proportion
+			INTO sandbox.dbo.VPtesttable1
+			FROM (SELECT BankCustomerID_INT, sum(Online_Spend) as Online, sum(Offline_Spend) as Offline
+			FROM sandbox.dbo.QAN_Online_QID_Customers
+			WHERE MonthID>=201610 and MonthID<=201709
+			GROUP BY BankCustomerID_INT) a
+
+			SELECT a.BankCustomerID_INT, a.Proportion, b.Band
+			INTO sandbox.dbo.VPtesttable2
+			FROM sandbox.dbo.VPtesttable1 a inner join sandbox.dbo.VP_SoWBanding b 
+				ON a.Proportion >= b.L AND a.Proportion < CASE WHEN b.Rowi = 10 THEN 1.1 ELSE b.H END
+        
+      SELECT a.BankCustomerID_INT, b.Weight, a.Band
+			INTO sandbox.dbo.VPtesttable3
+			FROM sandbox.dbo.VPtesttable2 a inner join (
+				SELECT BankCustomerID_INT, Weight
+				FROM blueprint_dw.dbo.v_DimWeights2013
+				WHERE SliceID = 20171002 AND CustomerIsActive = 1) b
+				ON a.BankCustomerID_INT = b.BankCustomerID_INT
+
+			SELECT BankCustomerID_INT
+			INTO sandbox.dbo.VPtesttable4
+			FROM sandbox.dbo.QAN_Response_Amazon_Customers
+			WHERE MonthID>=201610 and MonthID<=201709
+
+			SELECT a.BankCustomerID_INT, a.Weight, a.Band, CASE WHEN a.BankCustomerID_INT in (SELECT * FROM sandbox.dbo.VPtesttable4) 
+				THEN '1' ELSE '0' END AS Amazon
+			INTO sandbox.dbo.VPtesttable5
+			FROM sandbox.dbo.VPtesttable3 a inner join sandbox.dbo.VPtesttable2 b on a.BankCustomerID_INT = b.BankCustomerID_INT
+
+			SELECT Band, Amazon, sum(Weight) as Total
+			INTO sandbox.dbo.VPtesttable6
+			FROM sandbox.dbo.VPtesttable5
+			GROUP BY Band, Amazon
